@@ -207,7 +207,7 @@ function render(){
   $('#nav').innerHTML=NAV.map(function(a){return '<a href="#'+a[0]+'"'+(a[0]===r?' class="on"':'')+'>'+a[1]+'</a>'}).join('');
   $('#who').innerHTML=S.me?'Accesso come '+esc(S.me)+'<br><button data-act="logout">Esci</button>':'';
   var b='';
-  if(S.state==='cfg')b='<div class="banner">Il collegamento a Supabase non è ancora configurato: compila il file js/config.js come spiegato nella guida (LEGGIMI.md).</div>';
+  if(S.state==='cfg')b='<div class="banner">Il collegamento a Supabase non è ancora configurato: compila il file config.js come spiegato nella guida (LEGGIMI.md).</div>';
   else if(S.state==='err')b='<div class="banner">Non riesco a leggere i dati. Controlla la connessione e di aver eseguito lo schema SQL.</div>';
   else if(S.state==='wait')b='<div class="banner">Caricamento dei dati in corso…</div>';
   else if(S.state==='live'&&S.rt===false)b='<div class="banner">Aggiornamento in tempo reale interrotto: i dati si aggiornano quando torni su questa pagina.</div>';
@@ -569,7 +569,7 @@ function displayName(u){
   return m.charAt(0).toUpperCase()+m.slice(1);
 }
 function loginScreen(){
-  $('#layer').innerHTML='<div class="ov"><form class="modal" id="lf" style="width:min(380px,100%)"><div class="login-top"><img src="assets/logo-mark.png" alt="GR Edile"></div>'+
+  $('#layer').innerHTML='<div class="ov"><form class="modal" id="lf" style="width:min(380px,100%)"><div class="login-top"><img src="logo-mark.png" alt="GR Edile"></div>'+
     '<h2>Accedi al gestionale</h2><label>Email<input id="l_e" type="email" autocomplete="username" required></label>'+
     '<label>Password<input id="l_p" type="password" autocomplete="current-password" required></label><div id="lmsg"></div>'+
     '<button class="pri" type="submit" id="l_b">Entra</button></form></div>';
