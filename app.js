@@ -198,6 +198,7 @@ function vImp(){
     '<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px"><li>Portale <b>Fatture e Corrispettivi</b> dell\'Agenzia delle Entrate, accesso con SPID, CIE o CNS del legale rappresentante.</li>'+
     '<li>Servizio gratuito delle Camere di Commercio (<b>InfoCamere</b>), con invio e conservazione a norma.</li></ul>'+
     '<p class="note" style="margin:10px 0 0">Una fattura non consegnata tramite SDI vale come non emessa. Fai controllare il primo XML al commercialista.</p></div>'+
+    '<div class="card"><h2>Copia di sicurezza</h2><p style="margin:0 0 10px">Scarica tutti i dati in un file e conservalo fuori dal telefono (chiavetta, cartella del computer). Fallo una volta al mese. Ultima copia da questo dispositivo: <b>'+(lastBackup()?dt(lastBackup()):'mai')+'</b>.</p><button class="pri" data-act="backup">Scarica copia di sicurezza</button></div>'+
     '<div class="card"><h2>Account</h2><p style="margin:0 0 10px">Accesso come <b>'+esc(S.me)+'</b>. Tutte le modifiche compaiono subito sugli altri dispositivi collegati.</p><button data-act="logout">Esci</button></div>';
 }
 var VIEWS={dashboard:vDash,cantieri:vCantieri,clienti:vClienti,fatture:vFatture,ore:vOre,impostazioni:vImp};
@@ -210,6 +211,7 @@ function render(){
   if(S.state==='cfg')b='<div class="banner">Il collegamento a Supabase non è ancora configurato: compila il file config.js come spiegato nella guida (LEGGIMI.md).</div>';
   else if(S.state==='err')b='<div class="banner">Non riesco a leggere i dati. Controlla la connessione e di aver eseguito lo schema SQL.</div>';
   else if(S.state==='wait')b='<div class="banner">Caricamento dei dati in corso…</div>';
+  else if(S.state==='live'&&S.fatture.length&&daysSince(lastBackup())>30)b='<div class="banner">Da più di 30 giorni non fai la copia di sicurezza dei dati: vai in Impostazioni e scaricala.</div>';
   else if(S.state==='live'&&S.rt===false)b='<div class="banner">Aggiornamento in tempo reale interrotto: i dati si aggiornano quando torni su questa pagina.</div>';
   $('#main').innerHTML=b+VIEWS[r]();
 }
@@ -288,6 +290,8 @@ function agenda(){
   S.scadenze.forEach(function(s){it.push({src:'s',id:s.id,t:s.titolo,d:s.data||'9999',tipo:s.tipo,who:s.assegnato,done:!!s.fatto,rip:s.ripeti})});
   S.fatture.filter(function(f){return f.stato==='Emessa'&&f.scad}).forEach(function(f){
     it.push({src:'f',id:f.id,t:'Incassare fattura '+f.num+' ('+nomeCliente(f.cliente)+')',d:f.scad,tipo:'Pagamento',who:'',done:false})});
+  S.fatture.filter(function(f){return f.stato==='Bozza'}).forEach(function(f){
+    it.push({src:'f',id:f.id,t:'Inviare allo SDI la fattura '+f.num+' ('+nomeCliente(f.cliente)+')',d:addDays(f.data||today(),12),tipo:'Scadenza SDI: 12 giorni dalla data fattura',who:'',done:false})});
   S.documenti.filter(function(d){return d.scadenza}).forEach(function(d){
     it.push({src:'d',id:d.id,t:'Scade: '+d.nome,d:d.scadenza,tipo:'Documento',who:'',done:false})});
   return it.sort(function(a,b){return a.d.localeCompare(b.d)});
@@ -394,19 +398,25 @@ document.addEventListener('change',function(e){
 var IVA_OPT=[['22','IVA 22%'],['10','IVA 10%'],['4','IVA 4%'],['N6.3','Inversione contabile (subappalto edile)']];
 var PAG=[['MP05','Bonifico'],['MP08','Carta di pagamento'],['MP01','Contanti'],['MP12','Ri.Ba.']];
 function addDays(d,n){var x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)}
-function nextNum(K){var y=today().slice(0,4);return (K==='fatture'?'':'P-')+(S[K].filter(function(f){return (f.data||'').slice(0,4)===y}).length+1)+'/'+y}
+function nextNum(K){var y=today().slice(0,4),m=0;
+  S[K].forEach(function(f){var x=/^(?:P-)?(\d+)\/(\d{4})$/.exec(String(f.num||'').trim());if(x&&x[2]===y)m=Math.max(m,+x[1])});
+  return (K==='fatture'?'':'P-')+(m+1)+'/'+y}
+function pivaOk(p){p=String(p||'').trim();if(!/^\d{11}$/.test(p))return false;var t=0;for(var i=0;i<10;i++){var d=+p.charAt(i);if(i%2){d*=2;if(d>9)d-=9}t+=d}return (10-t%10)%10===+p.charAt(10)}
+function cfOk(c){c=String(c||'').trim();return /^[A-Za-z]{6}\d{2}[A-Za-z]\d{2}[A-Za-z]\d{3}[A-Za-z]$/.test(c)||/^\d{11}$/.test(c)}
+function lastBackup(){try{return localStorage.getItem('gr_backup')||''}catch(e){return ''}}
+function daysSince(d){return d?Math.round((Date.parse(today())-Date.parse(d))/864e5):999}
 function nextSeq(K){return S[K].reduce(function(m,f){return Math.max(m,f.seq||0)},0)+1}
 
 function openFattura(id,pref){openDoc('fatture',id,pref)}
 function openDoc(K,id,pref){
   var isF=K==='fatture';
-  var base=byId(K,id);
+  var base=byId(K,id),locked=!!(isF&&base&&base.stato!=='Bozza');
   var cur=base?JSON.parse(JSON.stringify(base)):Object.assign({id:uid(),seq:nextSeq(K),num:nextNum(K),stato:'Bozza',data:today(),scad:addDays(today(),30),
     righe:[{desc:'',qta:1,prezzo:0,iva:'22'}],rit:0,pag:'MP05',causale:'',cliente:'',cantiere:''},pref||{});
   var H=[{k:'num',l:'Numero'},{k:'data',l:'Data',t:'date'},{k:'scad',l:isF?'Scadenza pagamento':'Valido fino al',t:'date'},
     {k:'cliente',l:'Cliente',t:'select',c:'w2',opts:[['','— scegli il cliente —']].concat(S.clienti.map(function(c){return [c.id,c.nome]}))},
     {k:'cantiere',l:'Cantiere',t:'select',c:'w2',opts:[['','— nessuno —']].concat(S.cantieri.map(function(c){return [c.id,c.nome]}))},
-    {k:'stato',l:'Stato',t:'select',opts:['Bozza','Emessa','Pagata']},
+    {k:'stato',l:'Stato',t:'select',opts:locked?['Emessa','Pagata']:['Bozza','Emessa','Pagata']},
     {k:'rit',l:'Ritenuta d\'acconto',t:'select',opts:[['0','Nessuna'],['4','4% (lavori per condomini)']]},
     {k:'pag',l:'Pagamento',t:'select',opts:PAG},
     {k:'causale',l:'Oggetto della fattura (facoltativo)',t:'textarea',c:'wf'}];
@@ -430,18 +440,30 @@ function openDoc(K,id,pref){
     if(!cur.cliente)return 'Scegli il cliente.';
     cur.righe=cur.righe.filter(function(r){return String(r.desc).trim()});
     if(!cur.righe.length)return 'Inserisci almeno una riga con la descrizione dei lavori.';
+    var nn=String(cur.num||'').trim();cur.num=nn;
+    if(!nn)return 'Scrivi il numero del documento.';
+    if(S[K].some(function(x){return x.id!==cur.id&&String(x.num||'').trim()===nn}))return 'Esiste già un documento con il numero '+nn+'. Cambia il numero (il prossimo libero è '+nextNum(K)+').';
+    if(isF&&cur.stato!=='Bozza'){var er=xmlErrors(cur);if(er.length)return 'Prima di segnarla come '+cur.stato+' correggi: '+er.join(' · ')}
+    if(isF&&cur.stato!=='Bozza'&&!cur.emessaIl)cur.emessaIl=today();
     return '';
   };
-  var save=function(){var e=validate();if(e){msg(e);return false}put(K,cur);return true};
+  var save=function(){
+    if(locked){var st=$('#f_stato').value;if(st!==base.stato)put(K,Object.assign({},base,{stato:st}));return true}
+    var e=validate();if(e){msg(e);return false}put(K,cur);return true};
 
   modal('<div class="mh"><h2>'+(base?(isF?'Fattura ':'Preventivo ')+esc(base.num):(isF?'Nuova fattura':'Nuovo preventivo'))+'</h2><button id="x">Chiudi</button></div>'+
     '<div class="grid">'+H.map(function(f){return fld(f,f.k==='rit'?String(cur.rit):cur[f.k])}).join('')+'</div>'+
     '<div class="tw"><table><thead><tr><th>Descrizione</th><th>Quantità</th><th>Prezzo unit. €</th><th>IVA</th><th class="n">Importo</th><th></th></tr></thead><tbody id="rows">'+rowsHtml()+'</tbody></table></div>'+
     '<div><button id="addrow">Aggiungi riga</button></div><div class="tot" id="tot">'+totHtml()+'</div><div id="fmsg"></div>'+
-    '<div class="mf">'+(base?'<button class="dng sp" id="d">Elimina</button>':'')+
+    '<div class="mf">'+(base&&!locked?'<button class="dng sp" id="d">Elimina</button>':'')+
     (isF?'<button id="bx">Prepara XML per SDI</button>':(base?'<button id="cv">Crea fattura da questo preventivo</button>':''))+'<button id="s" class="pri">Salva</button></div>',true);
 
   $('#x').onclick=closeM;
+  if(locked){
+    [].forEach.call(document.querySelectorAll('.modal input,.modal select,.modal textarea'),function(el){if(el.id!=='f_stato')el.disabled=true});
+    $('#addrow').hidden=true;[].forEach.call(document.querySelectorAll('[data-rm]'),function(b){b.hidden=true});
+    msg('Fattura già emessa: i dati sono bloccati, perché una fattura inviata allo SDI non si modifica. Puoi solo cambiare lo stato (Emessa/Pagata). Per correggere un errore serve una nota di credito: chiedi al commercialista.');
+  }
   $('#addrow').onclick=function(){collect();cur.righe.push({desc:'',qta:1,prezzo:0,iva:'22'});$('#rows').innerHTML=rowsHtml();$('#tot').innerHTML=totHtml()};
   $('#rows').addEventListener('click',function(e){var b=e.target.closest('[data-rm]');if(!b)return;
     collect();cur.righe.splice(+b.dataset.rm,1);if(!cur.righe.length)cur.righe.push({desc:'',qta:1,prezzo:0,iva:'22'});
@@ -471,15 +493,27 @@ function pretty(x){var lvl=0;
     if(/^<[^\/!?][^>]*>$/.test(t))lvl++;
     return s}).join('\n')}
 function xmlErrors(f){
-  var a=S.azienda,c=byId('clienti',f.cliente)||{},e=[];
-  if(!/^\d{11}$/.test((a.piva||'').trim()))e.push('Impostazioni: la partita IVA dell\'azienda deve avere 11 cifre.');
-  ['indirizzo','cap','comune','prov'].forEach(function(k){if(!String(a[k]||'').trim())e.push('Impostazioni: manca '+k+' della sede.')});
-  if(!String(c.piva||'').trim()&&!String(c.cf||'').trim())e.push('Cliente: serve la partita IVA o il codice fiscale.');
-  ['indirizzo','cap','comune','prov'].forEach(function(k){if(!String(c[k]||'').trim())e.push('Cliente: manca '+k+'.')});
-  var sdi=(c.sdi||'').trim();
-  if(sdi.length!==7&&!(c.pec||'').trim())e.push('Cliente: serve il codice SDI di 7 caratteri oppure la PEC.');
+  var a=S.azienda,c=byId('clienti',f.cliente)||{},e=[],ok4=function(v){return /^\d{5}$/.test(String(v||'').trim())};
+  if(!pivaOk(a.piva))e.push('Impostazioni: la partita IVA dell\'azienda non è valida (servono 11 cifre corrette).');
+  ['indirizzo','comune'].forEach(function(k){if(!String(a[k]||'').trim())e.push('Impostazioni: manca '+k+' della sede.')});
+  if(!ok4(a.cap))e.push('Impostazioni: il CAP della sede deve avere 5 cifre.');
+  if(!/^[A-Za-z]{2}$/.test(String(a.prov||'').trim()))e.push('Impostazioni: la provincia della sede va scritta con 2 lettere (es. BA).');
+  var piva=String(c.piva||'').trim(),cf=String(c.cf||'').trim();
+  if(!piva&&!cf)e.push('Cliente: serve la partita IVA o il codice fiscale.');
+  if(piva&&!pivaOk(piva))e.push('Cliente: la partita IVA non è valida (servono 11 cifre corrette).');
+  if(cf&&!cfOk(cf))e.push('Cliente: il codice fiscale non è valido (16 caratteri, oppure 11 cifre per condomini e società).');
+  ['indirizzo','comune'].forEach(function(k){if(!String(c[k]||'').trim())e.push('Cliente: manca '+k+'.')});
+  if(!ok4(c.cap))e.push('Cliente: il CAP deve avere 5 cifre.');
+  if(!/^[A-Za-z]{2}$/.test(String(c.prov||'').trim()))e.push('Cliente: la provincia va scritta con 2 lettere.');
+  var sdi=(c.sdi||'').trim(),pec=(c.pec||'').trim();
+  if(!/^[A-Za-z0-9]{7}$/.test(sdi)&&!pec)e.push('Cliente: serve il codice SDI di 7 caratteri oppure la PEC (per i privati senza codice: 0000000).');
+  if(pec&&pec.indexOf('@')<1)e.push('Cliente: la PEC non sembra un indirizzo valido.');
   if(f.rit&&!String(a.causRit||'').trim())e.push('Impostazioni: manca la causale della ritenuta.');
   if(f.pag==='MP05'&&!String(a.iban||'').trim())e.push('Impostazioni: manca l\'IBAN per il pagamento con bonifico.');
+  if(f.righe.some(function(r){return isNaN(r.iva)})&&!pivaOk(piva))e.push('Inversione contabile: il cliente deve avere una partita IVA valida (vale solo tra imprese, mai verso privati o condomini).');
+  if(f.righe.some(function(r){return String(r.desc).trim()&&!(+r.qta>0)}))e.push('Una riga ha quantità zero o negativa.');
+  if(!(calcF(f).tot>0))e.push('Il totale della fattura deve essere maggiore di zero.');
+  if(String(f.num||'').slice(-4)!==String(f.data||'').slice(0,4))e.push('Il numero deve finire con l\'anno della data (esempio 12/'+String(f.data||'').slice(0,4)+').');
   return e;
 }
 function buildXml(f){
@@ -526,7 +560,7 @@ function showXml(f){
   modal('<div class="mh"><h2>XML della fattura '+esc(f.num)+'</h2><button id="x">Chiudi</button></div>'+
     '<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px"><li>Scarica il file <b>'+esc(name)+'.xml</b> (oppure copia il testo).</li>'+
     '<li>Caricalo nel portale <b>Fatture e Corrispettivi</b> dell\'Agenzia delle Entrate, o nel servizio gratuito InfoCamere, e invialo allo SDI.</li>'+
-    '<li>Quando lo SDI conferma la consegna, imposta lo stato della fattura su "Emessa".</li></ol>'+
+    '<li>Quando lo SDI conferma la consegna, imposta lo stato della fattura su "Emessa".</li><li>Se lo SDI la <b>scarta</b>, correggi e reinvia entro <b>5 giorni</b> con lo stesso numero e la stessa data.</li></ol>'+
     '<pre class="xml" id="pre">'+esc(xml)+'</pre><div id="fmsg"></div>'+
     '<div class="mf"><button class="sp" id="b">Torna alla fattura</button><button id="cc">Copia di cortesia (HTML)</button><button id="cp">Copia testo XML</button>'+'<button class="pri" id="dl">Scarica XML</button>'+'</div>');
   $('#x').onclick=closeM;$('#b').onclick=function(){openFattura(f.id)};
@@ -592,6 +626,10 @@ function boot(session){
   });
 }
 ACT.logout=function(){Store.signOut()};
+ACT.backup=function(){var o={versione:1,creato:new Date().toISOString(),azienda:S.azienda};COLL.forEach(function(c){o[c]=S[c]});
+  dlFile('GR-Edile-backup-'+today()+'.json',JSON.stringify(o,null,1),'application/json');
+  try{localStorage.setItem('gr_backup',today())}catch(e){}
+  render();toast('Copia di sicurezza scaricata')};
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.state==='live')reload()});
 resetData();render();
 if(!Store.configured){S.state='cfg';render()}
