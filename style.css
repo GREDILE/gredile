@@ -1,8 +1,8 @@
 /* Layout: sidebar ardesia a sinistra con le sezioni, area di lavoro a destra; su telefono la sidebar diventa una barra in alto. */
 :root{
   --bg:#f1f2f4; --panel:#ffffff; --ink:#1f242b; --muted:#5f6772; --line:#d9dce1;
-  --side:#272e36; --side-ink:#e9ecef; --side-mute:#9aa3ae;
-  --red:#c3222a; --accent:#c3222a; --accent-ink:#ffffff; --soft:#f6f7f8;
+  --side:#1f262e; --side-ink:#e9ecef; --side-mute:#9aa3ae;
+  --red:#6e2036; --accent:#491522; --accent-ink:#ffffff; --soft:#f6f7f8;
   --good:#1d7a4f; --warn:#a56a00; --bad:#b3372b;
   --good-bg:#dff1e7; --warn-bg:#fbefd2; --bad-bg:#f8dfdb; --info-bg:#e1e9f0;
   --f-head:'Space Grotesk',system-ui,sans-serif; --f-body:'Inter',system-ui,sans-serif;
@@ -10,13 +10,13 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#15181d; --panel:#1e2228; --ink:#eceff2; --muted:#9aa3ae; --line:#333a43;
   --side:#0f1216; --side-ink:#e9ecef; --side-mute:#8793a0; --soft:#262b32;
-  --accent:#d23a40; --accent-ink:#ffffff;
+  --accent:#a8344f; --accent-ink:#ffffff;
   --good:#5fd09a; --warn:#f0b429; --bad:#ff8f80;
   --good-bg:#1c3a2c; --warn-bg:#3b3012; --bad-bg:#43211d; --info-bg:#22303b; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#15181d; --panel:#1e2228; --ink:#eceff2; --muted:#9aa3ae; --line:#333a43;
   --side:#0f1216; --side-ink:#e9ecef; --side-mute:#8793a0; --soft:#262b32;
-  --accent:#d23a40; --accent-ink:#ffffff;
+  --accent:#a8344f; --accent-ink:#ffffff;
   --good:#5fd09a; --warn:#f0b429; --bad:#ff8f80;
   --good-bg:#1c3a2c; --warn-bg:#3b3012; --bad-bg:#43211d; --info-bg:#22303b; color-scheme:dark}
 *{box-sizing:border-box}
@@ -93,6 +93,6 @@ pre.xml{background:var(--soft);border:1px solid var(--line);border-radius:5px;pa
 
 .who button{margin-top:8px;background:transparent;color:var(--side-ink);border-color:rgba(255,255,255,.28);padding:5px 11px}
 .who button:hover{background:rgba(255,255,255,.08)}
-.login-top{background:#272e36;margin:-18px -18px 2px;padding:18px;border-radius:8px 8px 0 0;display:flex;justify-content:center}
+.login-top{background:#491522;margin:-18px -18px 2px;padding:18px;border-radius:8px 8px 0 0;display:flex;justify-content:center}
 .login-top img{height:72px;width:auto}
 .modal form{display:contents}
