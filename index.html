@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>GR Edile Gestionale</title>
-<meta name="theme-color" content="#1f262e">
+<meta name="theme-color" content="#491522">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -13,6 +13,7 @@
 </head>
 <body>
 <div class="app">
+  <div class="mbar"><button type="button" id="menuBtn" aria-label="Apri il menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><img src="logo-mark.png" alt=""><span>GR EDILE SRLS</span></div>
   <aside class="side">
     <div class="brand"><img src="logo-mark.png" alt=""><span>GR EDILE SRLS<small>Gestionale cantieri</small></span></div>
     <nav class="nav" id="nav"></nav>
@@ -20,6 +21,7 @@
   </aside>
   <main class="main" id="main"></main>
 </div>
+<div class="scrim" id="scrim"></div>
 <div id="layer"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
